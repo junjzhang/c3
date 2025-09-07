@@ -21,6 +21,7 @@ ruff = "0.6.*"
 mypy = "1.11.*"
 black = "24.*"
 pre-commit = ">=4.3.0,<5"
+tomli-w = ">=1.2.0,<2"
 
 [feature.dev.pypi-dependencies]
 c3cli = {path = ".", editable = true}

@@ -3,6 +3,13 @@
 import os
 from pathlib import Path
 
+import tomllib
+
+try:
+    import tomli_w
+except ImportError:
+    tomli_w = None
+
 from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
@@ -132,9 +139,33 @@ class CLIConfig(BaseModel):
         if config_path is None:
             config_path = cls.get_default_config_dir() / "config.toml"
 
-        # For now, always create default configuration
-        # In tests, they can override the default_repo_url
-        config = cls()
+        # Try to load existing configuration
+        if config_path.exists() and config_path.stat().st_size > 0:
+            try:
+                with open(config_path, "rb") as f:
+                    data = tomllib.load(f)
+
+                # Extract configuration values
+                repo_data = data.get("repository", {})
+                behavior_data = data.get("behavior", {})
+                advanced_data = data.get("advanced", {})
+
+                config = cls(
+                    default_repo_url=repo_data.get("url"),
+                    repo_branch=repo_data.get("branch", "main"),
+                    log_level=behavior_data.get("log_level", "info"),
+                    default_format=behavior_data.get("default_format", "text"),
+                    auto_sync=behavior_data.get("auto_sync", True),
+                    prompt_for_scripts=behavior_data.get("prompt_for_scripts", True),
+                    max_parallel_operations=advanced_data.get("max_parallel_operations", 4),
+                    sync_timeout=advanced_data.get("sync_timeout", 300),
+                )
+            except (tomllib.TOMLDecodeError, ValueError, OSError):
+                # If config file is corrupted or unreadable, create default
+                config = cls()
+        else:
+            # Create default configuration if file doesn't exist
+            config = cls()
 
         # Ensure config directories exist
         config.ensure_config_dirs()
@@ -149,9 +180,47 @@ class CLIConfig(BaseModel):
         # Ensure parent directory exists
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # TODO: Implement TOML saving
-        # For now, just create an empty file
-        config_path.touch()
+        # Create configuration data to save
+        config_data = {
+            "repository": {
+                "url": self.default_repo_url,
+                "branch": self.repo_branch,
+            },
+            "behavior": {
+                "log_level": self.log_level,
+                "default_format": self.default_format,
+                "auto_sync": self.auto_sync,
+                "prompt_for_scripts": self.prompt_for_scripts,
+            },
+            "advanced": {
+                "max_parallel_operations": self.max_parallel_operations,
+                "sync_timeout": self.sync_timeout,
+            },
+        }
+
+        # Save to TOML file
+        if tomli_w is not None:
+            with open(config_path, "wb") as f:
+                tomli_w.dump(config_data, f)
+        else:
+            # Fallback: simple text-based format
+            lines = []
+            lines.append("[repository]")
+            lines.append(f'url = "{self.default_repo_url or ""}"')
+            lines.append(f'branch = "{self.repo_branch}"')
+            lines.append("")
+            lines.append("[behavior]")
+            lines.append(f'log_level = "{self.log_level}"')
+            lines.append(f'default_format = "{self.default_format}"')
+            lines.append(f"auto_sync = {str(self.auto_sync).lower()}")
+            lines.append(f"prompt_for_scripts = {str(self.prompt_for_scripts).lower()}")
+            lines.append("")
+            lines.append("[advanced]")
+            lines.append(f"max_parallel_operations = {self.max_parallel_operations}")
+            lines.append(f"sync_timeout = {self.sync_timeout}")
+
+            with open(config_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
 
     def get_repo_cache_dir(self, repo_url: str | None = None) -> Path:
         """Get cache directory for a repository."""
