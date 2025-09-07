@@ -20,7 +20,7 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
 )
 
-_FORMAT_OPTION = typer.Option(OutputFormat.TEXT, "--format", help="Output format")
+_FORMAT_OPTION = typer.Option(None, "--format", help="Output format (overrides config.default_format)")
 
 
 def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
@@ -51,7 +51,7 @@ def main(
     repo: str | None = typer.Option(None, "--repo", help="Config repository URL (overrides config file)"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
-    format_type: OutputFormat = _FORMAT_OPTION,
+    format_type: OutputFormat | None = _FORMAT_OPTION,
 ):
     """Claude Code Configuration Manager CLI.
 
@@ -75,7 +75,7 @@ def main(
             repo_override=repo,
             verbose=verbose,
             quiet=quiet,
-            format_type=format_type.value,
+            format_type=(format_type.value if isinstance(format_type, OutputFormat) else None),
         )
     except Exception as e:
         # Ensure repository/config errors return consistent exit codes during callback

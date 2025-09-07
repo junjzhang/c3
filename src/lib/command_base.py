@@ -42,7 +42,7 @@ class CommandContext:
         repo_override: str | None,
         verbose: bool,
         quiet: bool,  # noqa
-        format_type: str,
+        format_type: str | None,
     ) -> "CommandContext":
         """Create CommandContext directly from CLI arguments.
 
@@ -76,11 +76,12 @@ class CommandContext:
                 except Exception as e:
                     raise RepositoryError(f"Invalid repository URL: {e}")
 
-            return cls(
-                config=config,
-                verbose=verbose,
-                output_format=format_type,
+            # Resolve output format: CLI option overrides config; if not provided, use config.default_format
+            resolved_format = (
+                format_type.strip().lower() if isinstance(format_type, str) and format_type else config.default_format
             )
+
+            return cls(config=config, verbose=verbose, output_format=resolved_format)
 
         except Exception as e:
             if isinstance(e, CommandError):

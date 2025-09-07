@@ -2,11 +2,11 @@
 
 import logging
 
-import click
 import typer
 from rich.console import Console
 
 from ..lib.render import render_json
+from ..lib.command_base import get_command_context, handle_command_error
 from ..models.cli_config import CLIConfig
 
 logger = logging.getLogger(__name__)
@@ -20,9 +20,9 @@ config_app = typer.Typer(name="config", help="Manage CLI configuration")
 def list_config():
     """List all configuration settings."""
     try:
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
-        output_format = ctx.obj.get("format", "text")
+        context = get_command_context()
+        config = context.config
+        output_format = context.output_format
 
         if output_format == "json":
             config_dict = config.model_dump()
@@ -35,9 +35,7 @@ def list_config():
             console.print(f"user.home: {config.user_home}")
 
     except Exception as e:
-        logger.error(f"Error listing config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 @config_app.command(name="get")
@@ -46,8 +44,8 @@ def get_config(
 ):
     """Get configuration value by key."""
     try:
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
+        context = get_command_context()
+        config = context.config
 
         # Parse nested keys
         keys = key.split(".")
@@ -68,18 +66,16 @@ def get_config(
         console.print(f"{key}: {value}")
 
     except Exception as e:
-        logger.error(f"Error getting config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 @config_app.command(name="show")
 def show_config():
     """Show current configuration."""
     try:
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
-        output_format = ctx.obj.get("format", "text")
+        context = get_command_context()
+        config = context.config
+        output_format = context.output_format
 
         if output_format == "json":
             config_dict = config.model_dump()
@@ -104,9 +100,7 @@ def show_config():
                 console.print("Run 'c3cli config set repository.url <url>' to configure")
 
     except Exception as e:
-        logger.error(f"Error showing config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 @config_app.command(name="set")
@@ -116,8 +110,8 @@ def set_config(
 ):
     """Set configuration value."""
     try:
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
+        context = get_command_context()
+        config = context.config
 
         # Parse nested keys
         keys = key.split(".")
@@ -127,12 +121,10 @@ def set_config(
         elif keys == ["repository", "branch"]:
             config.repo_branch = value
         elif keys == ["cache", "dir"]:
-            # Cache dir is computed property, not settable directly
             console.print("[red]Error: Cache directory cannot be set directly[/red]")
             console.print("It is computed from config directory and repository URL")
             raise typer.Exit(1)
         elif keys == ["auto", "sync"] or keys == ["auto_sync"]:
-            # Auto sync is computed based on other settings
             console.print("[red]Error: Auto sync cannot be set directly[/red]")
             console.print("It is computed from repository configuration")
             raise typer.Exit(1)
@@ -150,9 +142,7 @@ def set_config(
             console.print("[green]Configuration is now complete[/green]")
 
     except Exception as e:
-        logger.error(f"Error setting config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 @config_app.command(name="unset")
@@ -161,8 +151,8 @@ def unset_config(
 ):
     """Unset configuration value."""
     try:
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
+        context = get_command_context()
+        config = context.config
 
         # Parse nested keys
         keys = key.split(".")
@@ -182,9 +172,7 @@ def unset_config(
         console.print(f"[green]✓ Unset {key}[/green]")
 
     except Exception as e:
-        logger.error(f"Error unsetting config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 @config_app.command(name="reset")
@@ -197,10 +185,11 @@ def reset_config(
             if not typer.confirm("Reset all configuration to defaults?"):
                 console.print("Cancelled")
                 return
-        ctx = click.get_current_context()
-        config_path = ctx.obj.get("config_path")
 
-        # Create new default config
+        # Create new default config and save to current config file location
+        context = get_command_context()
+        config_path = context.config.config_dir / "config.toml"
+
         config = CLIConfig()
         config.save_to_file(config_path)
 
@@ -208,9 +197,7 @@ def reset_config(
         console.print("Run 'c3cli config set repository.url <url>' to configure")
 
     except Exception as e:
-        logger.error(f"Error resetting config: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
 
 
 # Main config command that uses the subcommand app
