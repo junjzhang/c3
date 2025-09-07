@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from pydantic import Field, BaseModel, field_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
 class CLIConfig(BaseModel):
@@ -187,11 +187,4 @@ class CLIConfig(BaseModel):
         """Check if should prompt before executing scripts."""
         return self.prompt_for_scripts
 
-    class Config:
-        """Pydantic model configuration."""
-
-        validate_assignment = True
-        extra = "forbid"
-        json_encoders = {
-            Path: str,
-        }
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")

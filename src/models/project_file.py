@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
-from pydantic import Field, BaseModel, field_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
 class ProjectFile(BaseModel):
@@ -170,12 +170,11 @@ class ProjectFile(BaseModel):
         except RuntimeError:
             return False
 
-    class Config:
-        """Pydantic model configuration."""
-
-        validate_assignment = True
-        extra = "forbid"
-        json_encoders = {
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        json_encoders={
             Path: str,
             datetime: lambda v: v.isoformat(),
-        }
+        },
+    )

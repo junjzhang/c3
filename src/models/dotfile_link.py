@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-from pydantic import Field, BaseModel, field_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
 class DotfileLink(BaseModel):
@@ -144,12 +144,11 @@ class DotfileLink(BaseModel):
 
         return True, "OK"
 
-    class Config:
-        """Pydantic model configuration."""
-
-        validate_assignment = True
-        extra = "forbid"
-        json_encoders = {
+    model_config = ConfigDict(
+        validate_assignment=True,
+        extra="forbid",
+        json_encoders={
             Path: str,
             datetime: lambda v: v.isoformat(),
-        }
+        },
+    )
