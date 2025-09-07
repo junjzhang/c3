@@ -9,6 +9,7 @@ import tomllib
 from git import Repo, GitCommandError, InvalidGitRepositoryError
 from pydantic import ValidationError
 
+from .command_base import RepositoryError
 from ..models.template import Template, TemplateType
 
 logger = logging.getLogger(__name__)
@@ -85,8 +86,6 @@ class GitOperations:
         Raises:
             RepositoryError: If clone or sync operation fails
         """
-        from .command_base import RepositoryError
-
         if not cache_dir.exists():
             # Clone repository
             success = self.clone_repository(repo_url, cache_dir, branch)

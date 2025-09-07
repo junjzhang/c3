@@ -35,6 +35,59 @@ class CommandContext:
         """Check if output format is JSON."""
         return self.output_format == "json"
 
+    @classmethod
+    def from_cli_args(
+        cls,
+        config_path: str | None,
+        repo_override: str | None,
+        verbose: bool,
+        quiet: bool,  # noqa
+        format_type: str,
+    ) -> "CommandContext":
+        """Create CommandContext directly from CLI arguments.
+
+        This eliminates the need for intermediate dict conversion and
+        centralizes all configuration loading logic.
+
+        Args:
+            config_path: Path to config file or None
+            repo_override: Repository URL override or None
+            verbose: Verbose logging flag
+            quiet: Quiet logging flag (unused in context but available)
+            format_type: Output format string
+
+        Returns:
+            CommandContext with loaded configuration
+
+        Raises:
+            ConfigurationError: If configuration is invalid
+            RepositoryError: If repository URL is invalid
+        """
+        from pathlib import Path
+
+        try:
+            # Load configuration
+            config = CLIConfig.load_from_file(Path(config_path) if config_path else None)
+
+            # Apply repository override if provided
+            if repo_override:
+                try:
+                    config.default_repo_url = repo_override
+                except Exception as e:
+                    raise RepositoryError(f"Invalid repository URL: {e}")
+
+            return cls(
+                config=config,
+                verbose=verbose,
+                output_format=format_type,
+            )
+
+        except Exception as e:
+            if isinstance(e, CommandError):
+                raise
+            logger.error(f"Failed to create command context: {e}")
+            raise ConfigurationError(f"Configuration error: {e}")
+
 
 class CommandError(Exception):
     """Base exception for command errors with specific exit codes."""
@@ -66,14 +119,14 @@ class ConflictError(CommandError):
         super().__init__(message, exit_code=2)
 
 
-def create_command_context(ctx_obj: dict) -> CommandContext:
+def create_command_context(ctx_obj: CommandContext | dict) -> CommandContext:
     """Create unified command context from click context object.
 
-    This function centralizes all configuration loading and validation.
-    Each command gets a clean CommandContext instead of parsing ctx.obj manually.
+    This function handles both legacy dict format and new CommandContext format.
+    Commands can now use ctx.obj directly as CommandContext.
 
     Args:
-        ctx_obj: Click context object dictionary
+        ctx_obj: Either a CommandContext instance or legacy dict format
 
     Returns:
         CommandContext with loaded configuration
@@ -82,6 +135,11 @@ def create_command_context(ctx_obj: dict) -> CommandContext:
         ConfigurationError: If configuration is invalid
         RepositoryError: If repository configuration is invalid
     """
+    # If ctx_obj is already a CommandContext, return it directly
+    if isinstance(ctx_obj, CommandContext):
+        return ctx_obj
+
+    # Legacy dict handling for backwards compatibility
     try:
         # Load configuration
         config_path = ctx_obj.get("config_path")
@@ -156,3 +214,42 @@ def get_command_context() -> CommandContext:
     """
     ctx = click.get_current_context()
     return create_command_context(ctx.obj)
+
+
+def sync_repo_if_needed(
+    context: CommandContext,
+    git_ops,
+    *,
+    branch: str | None = None,
+    force: bool = False,
+) -> None:
+    """Ensure repository cache is present and up to date when needed.
+
+    Centralizes the common "clone or sync" logic used by multiple commands.
+
+    Args:
+        context: Unified command context
+        git_ops: GitOperations instance
+        branch: Optional branch override (defaults to config branch)
+        force: Force sync (discard local changes)
+
+    Raises:
+        RepositoryError: When clone/sync fails
+    """
+    repo_cache_dir = context.config.get_repo_cache_dir()
+    sync_branch = branch if branch is not None else context.config.repo_branch
+
+    need_sync = (not repo_cache_dir.exists()) or context.config.should_auto_sync()
+    if not need_sync:
+        return
+
+    if context.output_format == "text" and context.verbose:
+        console.print(f"Syncing repository from {context.config.default_repo_url}")
+
+    try:
+        git_ops.ensure_repo(context.config.default_repo_url, sync_branch, repo_cache_dir, force=force)
+    except Exception as e:
+        if isinstance(e, RepositoryError):
+            raise
+        logger.error(f"Repository sync failed: {e}")
+        raise RepositoryError("Failed to prepare repository cache")

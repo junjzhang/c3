@@ -22,23 +22,10 @@ Represents a configuration template that can be applied to user or project scope
 **State Transitions**:
 - Template discovered → Template validated → Template applied
 
-### ConfigRepository  
-Represents the Git repository containing templates and dotfiles.
+### ConfigRepository (Removed)
+This model has been removed. Responsibility is handled by the composition of `CLIConfig` (persistent settings) and `GitOperations` (runtime Git actions). The section is kept for historical context only.
 
-**Fields**:
-- `url: str` - Git repository URL
-- `local_path: Path` - Local filesystem path where repo is cloned
-- `branch: str` - Git branch to use (default: main)
-- `templates: dict[str, Template]` - Available templates indexed by name
-- `last_sync: datetime` - Timestamp of last successful sync
-
-**Validation Rules**:
-- URL must be valid Git repository URL
-- Local path must be writable directory
-- Branch must exist in remote repository
-
-**State Transitions**:
-- Repository configured → Repository cloned → Repository synced
+[Removed: see note above]
 
 ### DotfileLink
 Represents a symlink from user directory to config repository file.
@@ -101,10 +88,8 @@ Represents user's local CLI configuration.
 - Files are relative paths within template directory
 - Relationship: Template.files = List[relative_path]
 
-### ConfigRepository → Templates  
-- One repository contains multiple templates
-- Templates are subdirectories in repository
-- Relationship: ConfigRepository.templates = Dict[name, Template]
+### ConfigRepository → Templates (Removed)
+[Removed: relationships now described operationally under Git repository structure and discovery in `GitOperations`]
 
 ### Template → DotfileLinks
 - One template can create multiple dotfile links
@@ -116,10 +101,8 @@ Represents user's local CLI configuration.
 - Each file tracks its source template  
 - Relationship: ProjectFile.template_name → Template.name
 
-### ConfigRepository → Local Storage
-- Repository maps to local filesystem directory
-- Local path contains cloned repository content
-- Relationship: ConfigRepository.local_path → filesystem
+### ConfigRepository → Local Storage (Removed)
+[Removed: local cache paths are derived by `CLIConfig.get_repo_cache_dir()` and used by `GitOperations`]
 
 ## Error States
 

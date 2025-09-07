@@ -58,7 +58,7 @@
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [ ] T012 [P] Template Pydantic model in src/models/template.py
-- [ ] T013 [P] ConfigRepository Pydantic model in src/models/config_repository.py
+- [x] T013 Removed — superseded by CLIConfig + GitOperations (no implementation needed)
 - [ ] T014 [P] DotfileLink Pydantic model in src/models/dotfile_link.py
 - [ ] T015 [P] ProjectFile Pydantic model in src/models/project_file.py
 - [ ] T016 [P] CLIConfig Pydantic model in src/models/cli_config.py
@@ -109,9 +109,8 @@ Task: "Contract test c3cli config command in tests/contract/test_cli_config.py"
 Task: "Integration test Git repository operations in tests/integration/test_git_operations.py"
 Task: "Integration test filesystem operations in tests/integration/test_filesystem_operations.py"
 
-# Phase 3.3: Launch all Pydantic models together (T012-T016):
+# Phase 3.3: Launch Pydantic models (T012, T014-T016):
 Task: "Template Pydantic model in src/models/template.py"
-Task: "ConfigRepository Pydantic model in src/models/config_repository.py"
 Task: "DotfileLink Pydantic model in src/models/dotfile_link.py"
 Task: "ProjectFile Pydantic model in src/models/project_file.py"
 Task: "CLIConfig Pydantic model in src/models/cli_config.py"

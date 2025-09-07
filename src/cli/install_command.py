@@ -11,6 +11,7 @@ from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
 from ..lib.command_base import (
     get_command_context,
+    sync_repo_if_needed,
     handle_command_error,
     ensure_repository_configured,
 )
@@ -42,12 +43,8 @@ def install(
         # Get repository cache directory
         repo_cache_dir = context.config.get_repo_cache_dir()
 
-        # Sync repository if needed
-        if not repo_cache_dir.exists() or context.config.should_auto_sync():
-            if context.verbose:
-                console.print(f"Syncing repository from {context.config.default_repo_url}")
-
-            git_ops.ensure_repo(context.config.default_repo_url, context.config.repo_branch, repo_cache_dir)
+        # Unified sync/clone logic
+        sync_repo_if_needed(context, git_ops)
 
         # Discover templates
         templates = git_ops.discover_templates(repo_cache_dir)

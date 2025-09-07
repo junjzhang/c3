@@ -65,34 +65,34 @@ def status(
                 "missing_links": [],
             }
 
-            # Get expected symlinks for this template
-            expected_links = dotfiles_manager._get_symlinks_for_template(template, repo_cache_dir)
+        # Get expected symlinks for this template
+        expected_links = dotfiles_manager.expected_symlinks_for_template(template, repo_cache_dir)
 
-            for link in expected_links:
-                if link.target.exists():
-                    if link.target.is_symlink():
-                        actual_source = link.target.resolve()
-                        if actual_source == link.source:
-                            template_status["installed_links"].append(
-                                {"target": str(link.target), "source": str(link.source), "status": "ok"}
-                            )
-                        else:
-                            template_status["broken_links"].append(
-                                {
-                                    "target": str(link.target),
-                                    "source": str(link.source),
-                                    "actual_source": str(actual_source),
-                                    "status": "wrong_target",
-                                }
-                            )
+        for link in expected_links:
+            if link.target.exists():
+                if link.target.is_symlink():
+                    actual_source = link.target.resolve()
+                    if actual_source == link.source:
+                        template_status["installed_links"].append(
+                            {"target": str(link.target), "source": str(link.source), "status": "ok"}
+                        )
                     else:
                         template_status["broken_links"].append(
-                            {"target": str(link.target), "source": str(link.source), "status": "not_symlink"}
+                            {
+                                "target": str(link.target),
+                                "source": str(link.source),
+                                "actual_source": str(actual_source),
+                                "status": "wrong_target",
+                            }
                         )
                 else:
-                    template_status["missing_links"].append(
-                        {"target": str(link.target), "source": str(link.source), "status": "missing"}
+                    template_status["broken_links"].append(
+                        {"target": str(link.target), "source": str(link.source), "status": "not_symlink"}
                     )
+            else:
+                template_status["missing_links"].append(
+                    {"target": str(link.target), "source": str(link.source), "status": "missing"}
+                )
 
             status_data.append(template_status)
 

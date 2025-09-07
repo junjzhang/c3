@@ -273,8 +273,8 @@ class DotfilesManager:
 
         return installed
 
-    def _get_symlinks_for_template(self, template: Template, repository_path: Path) -> list[DotfileLink]:
-        """Get expected symlinks for a template.
+    def expected_symlinks_for_template(self, template: Template, repository_path: Path) -> list[DotfileLink]:
+        """Get expected symlinks for a template (public API).
 
         Args:
             template: Template to get symlinks for

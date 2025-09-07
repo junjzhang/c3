@@ -55,7 +55,7 @@ class TemplatesManager:
         files_to_copy = []
         copied_files = []
 
-        # Plan all file operations first
+        # Plan file operations from the single source of truth: template.files
         for file_path in template.files:
             source = template_path / file_path
             target = target_directory / file_path
@@ -65,19 +65,6 @@ class TemplatesManager:
                 continue
 
             files_to_copy.append((source, target))
-
-        # Also copy any additional files in the template directory that aren't explicitly listed
-        for item in template_path.rglob("*"):
-            if item.is_file():
-                rel_path = item.relative_to(template_path)
-                source = item
-                target = target_directory / rel_path
-
-                # Skip if already in explicit files list
-                if str(rel_path) not in template.files:
-                    # Skip metadata files and install scripts (they're handled separately)
-                    if rel_path.name not in ["metadata.toml", "install.sh"]:
-                        files_to_copy.append((source, target))
 
         if dry_run:
             self.logger.info(f"DRY RUN: Would copy {len(files_to_copy)} files for template {template.name}")
@@ -232,15 +219,8 @@ class TemplatesManager:
             if source.exists() and target.exists():
                 conflicts.append((source, target))
 
-        # Check additional files in template
-        for item in template_path.rglob("*"):
-            if item.is_file():
-                rel_path = item.relative_to(template_path)
-                target = target_directory / rel_path
-
-                if target.exists() and str(rel_path) not in template.files:
-                    if rel_path.name not in ["metadata.toml", "install.sh"]:
-                        conflicts.append((item, target))
+        # Only consider files declared in template.files
+        # Additional files not listed are intentionally ignored
 
         return conflicts
 

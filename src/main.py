@@ -64,15 +64,22 @@ def main(
     # Setup logging
     setup_logging(verbose, quiet)
 
-    # Store global options in context
+    # Create unified command context
     ctx = click.get_current_context()
     ctx.ensure_object(dict)
-    ctx.obj["config_path"] = Path(config) if config else None
-    ctx.obj["repo_override"] = repo
-    ctx.obj["verbose"] = verbose
-    ctx.obj["quiet"] = quiet
-    # Store as primitive to simplify downstream checks
-    ctx.obj["format"] = format_type.value
+    from .lib.command_base import CommandContext, handle_command_error
+
+    try:
+        ctx.obj = CommandContext.from_cli_args(
+            config_path=config,
+            repo_override=repo,
+            verbose=verbose,
+            quiet=quiet,
+            format_type=format_type.value,
+        )
+    except Exception as e:
+        # Ensure repository/config errors return consistent exit codes during callback
+        handle_command_error(e)
 
 
 # Import and register commands

@@ -2,14 +2,18 @@
 
 import logging
 
-import click
 import typer
 from rich.console import Console
 
 from ..lib.render import render_json, render_text_templates
 from ..lib.git_ops import GitOperations
 from ..models.enums import TemplateKind
-from ..models.cli_config import CLIConfig
+from ..lib.command_base import (
+    get_command_context,
+    sync_repo_if_needed,
+    handle_command_error,
+    ensure_repository_configured,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -30,34 +34,15 @@ def list_templates(
     Shows all available templates with optional filtering by pattern and type.
     """
     try:
-        # Get context and load configuration
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
+        # Unified command context and config
+        context = get_command_context()
+        ensure_repository_configured(context)
 
-        if ctx.obj.get("repo_override"):
-            try:
-                config.default_repo_url = ctx.obj["repo_override"]
-            except Exception as e:
-                console.print(f"[red]Error: Invalid repository URL: {e}[/red]")
-                raise typer.Exit(4)
-
-        if not config.is_configured():
-            console.print("[red]Error: No repository configured. Use 'c3cli config set repository.url <url>'[/red]")
-            raise typer.Exit(1)
-
-        verbose = ctx.obj.get("verbose", False)
-        output_format = ctx.obj.get("format", "text")
-
-        # Setup Git operations
         git_ops = GitOperations()
-        repo_cache_dir = config.get_repo_cache_dir()
+        repo_cache_dir = context.config.get_repo_cache_dir()
 
-        # Sync repository if needed
-        if not repo_cache_dir.exists() or config.should_auto_sync():
-            if verbose:
-                console.print(f"Syncing repository from {config.default_repo_url}")
-
-            git_ops.ensure_repo(config.default_repo_url, config.repo_branch, repo_cache_dir)
+        # Unified sync/clone logic
+        sync_repo_if_needed(context, git_ops)
 
         # Discover templates
         templates = git_ops.discover_templates(repo_cache_dir)
@@ -82,14 +67,14 @@ def list_templates(
             if template_type != TemplateKind.ALL:
                 message += f" of type '{template_type.value}'"
 
-            if output_format == "json":
+            if context.output_format == "json":
                 render_json({"templates": []})
             else:
                 console.print(f"[yellow]{message}[/yellow]")
             return
 
         # Output results
-        if output_format == "json":
+        if context.output_format == "json":
             template_data = []
             for template in templates:
                 template_info = {
@@ -113,9 +98,5 @@ def list_templates(
         else:
             render_text_templates(templates, detailed=detailed)
 
-    except typer.Exit:
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error during list: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)

@@ -41,43 +41,6 @@
       "required": ["name", "description", "type", "files"],
       "additionalProperties": false
     },
-    
-    "ConfigRepository": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^(https?|git|ssh)://",
-          "description": "Git repository URL"
-        },
-        "local_path": {
-          "type": "string",
-          "description": "Local filesystem path"
-        },
-        "branch": {
-          "type": "string",
-          "default": "main",
-          "description": "Git branch to use"
-        },
-        "templates": {
-          "type": "object",
-          "patternProperties": {
-            "^[a-zA-Z0-9][a-zA-Z0-9_-]*$": {
-              "$ref": "#/definitions/Template"
-            }
-          },
-          "description": "Available templates"
-        },
-        "last_sync": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Last successful sync timestamp"
-        }
-      },
-      "required": ["url", "local_path", "branch", "templates"],
-      "additionalProperties": false
-    },
 
     "DotfileLink": {
       "type": "object",
