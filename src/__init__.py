@@ -3,4 +3,12 @@
 A CLI tool for managing dotfiles and project templates from Git repositories.
 """
 
-__version__ = "0.1.0"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("c3cli")
+except PackageNotFoundError:
+    # Development mode fallback
+    __version__ = "dev"
+
+__author__ = "junjzhang"

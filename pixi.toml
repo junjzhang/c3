@@ -6,12 +6,15 @@ platforms = ["osx-arm64"]
 version = "0.1.0"
 
 [tasks]
+build = "C3CLI_VERSION=$(pixi run -e build hatch version) rattler-build build --recipe recipe/recipe.yaml --output-dir ./output"
+clean-build = "rm -rf ./output"
 
 [dependencies]
 python = "3.11.*"
 pydantic = "*"
 typer = "*"
 gitpython = "*"
+tomli-w = ">=1.2.0,<2"
 
 [feature.dev.dependencies]
 pytest = "*"
@@ -21,10 +24,15 @@ ruff = "0.6.*"
 mypy = "1.11.*"
 black = "24.*"
 pre-commit = ">=4.3.0,<5"
-tomli-w = ">=1.2.0,<2"
+
+[feature.build.dependencies]
+hatch = "*"
+hatch-vcs = "*"
+rattler-build = "*"
 
 [feature.dev.pypi-dependencies]
 c3cli = {path = ".", editable = true}
 
 [environments]
-dev = ["dev"]
+dev = { features = ["dev"] }
+build = { features = ["build"] }

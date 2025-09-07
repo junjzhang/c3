@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -45,10 +45,10 @@ Source = "https://github.com/unknown/c3cli"
 c3cli = "src.main:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/"]
+packages = ["src"]
 
 [tool.hatch.version]
-path = "src/__init__.py"
+source = "vcs"
 
 [tool.hatch.envs.default]
 dependencies = [

@@ -1,0 +1,51 @@
+context:
+  name: c3cli
+  # Prefer environment-provided version; fall back to package version management outside recipe.
+  version: ${{ env.get("C3CLI_VERSION") }}
+
+package:
+  name: "${{ name }}"
+  version: "${{ version }}"
+
+source:
+  # Use local source directory
+  path: ..
+
+build:
+  number: 0
+  noarch: python
+  script: |
+    python -m pip install . --no-deps --ignore-installed -vv
+
+requirements:
+  host:
+    - python >=3.11
+    - pip
+    - hatchling
+    - hatch-vcs
+  run:
+    - python >=3.11
+    - pydantic
+    - typer
+    - gitpython
+    - rich
+    - git
+    - tomli-w
+
+tests:
+  - script:
+      - c3cli --help
+
+about:
+  summary: Claude Code Configuration Manager CLI
+  description: |
+    c3cli is a simple CLI tool for managing dotfiles (symlinks) and
+    project templates (file copying) from Git repositories.
+  license: MIT
+  homepage: https://github.com/junjzhang/c3
+  repository: https://github.com/junjzhang/c3.git
+  documentation: https://github.com/junjzhang/c3#readme
+
+extra:
+  recipe-maintainers:
+    - junjzhang
