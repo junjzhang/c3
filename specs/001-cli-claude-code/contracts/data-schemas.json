@@ -1,0 +1,289 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "C3CLI Data Schemas",
+  "definitions": {
+    "Template": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]*$",
+          "description": "Template identifier"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable template description"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["dotfiles", "project"],
+          "description": "Template application scope"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "List of files in template"
+        },
+        "install_script": {
+          "type": ["string", "null"],
+          "description": "Path to install.sh script if present"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional metadata from metadata.toml"
+        }
+      },
+      "required": ["name", "description", "type", "files"],
+      "additionalProperties": false
+    },
+    
+    "ConfigRepository": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^(https?|git|ssh)://",
+          "description": "Git repository URL"
+        },
+        "local_path": {
+          "type": "string",
+          "description": "Local filesystem path"
+        },
+        "branch": {
+          "type": "string",
+          "default": "main",
+          "description": "Git branch to use"
+        },
+        "templates": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-zA-Z0-9][a-zA-Z0-9_-]*$": {
+              "$ref": "#/definitions/Template"
+            }
+          },
+          "description": "Available templates"
+        },
+        "last_sync": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last successful sync timestamp"
+        }
+      },
+      "required": ["url", "local_path", "branch", "templates"],
+      "additionalProperties": false
+    },
+
+    "DotfileLink": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Path to file in config repository"
+        },
+        "target": {
+          "type": "string",
+          "description": "Path to symlink in user directory"
+        },
+        "template_name": {
+          "type": "string",
+          "description": "Template that created this link"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When symlink was created"
+        }
+      },
+      "required": ["source", "target", "template_name", "created_at"],
+      "additionalProperties": false
+    },
+
+    "ProjectFile": {
+      "type": "object", 
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Path to file in template"
+        },
+        "target": {
+          "type": "string", 
+          "description": "Path to copied file in project"
+        },
+        "template_name": {
+          "type": "string",
+          "description": "Template that created this file"
+        },
+        "copied_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When file was copied"
+        },
+        "checksum": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 hash of copied content"
+        }
+      },
+      "required": ["source", "target", "template_name", "copied_at", "checksum"],
+      "additionalProperties": false
+    },
+
+    "CLIConfig": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": ["string", "null"],
+              "format": "uri",
+              "description": "Default config repository URL"
+            },
+            "branch": {
+              "type": "string",
+              "default": "main",
+              "description": "Default branch to use"
+            },
+            "local_path": {
+              "type": "string",
+              "description": "Local repository storage path"
+            }
+          },
+          "additionalProperties": false
+        },
+        "preferences": {
+          "type": "object",
+          "properties": {
+            "log_level": {
+              "type": "string",
+              "enum": ["debug", "info", "warning", "error"],
+              "default": "info",
+              "description": "Logging level"
+            },
+            "default_format": {
+              "type": "string", 
+              "enum": ["text", "json"],
+              "default": "text",
+              "description": "Default output format"
+            },
+            "auto_sync": {
+              "type": "boolean",
+              "default": true,
+              "description": "Automatically sync before operations"
+            },
+            "prompt_for_scripts": {
+              "type": "boolean",
+              "default": true,
+              "description": "Prompt before executing install.sh"
+            }
+          },
+          "additionalProperties": false
+        },
+        "paths": {
+          "type": "object",
+          "properties": {
+            "config_dir": {
+              "type": "string",
+              "description": "CLI configuration directory"
+            },
+            "user_home": {
+              "type": "string",
+              "description": "User home directory"
+            }
+          },
+          "required": ["config_dir", "user_home"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["paths"],
+      "additionalProperties": false
+    },
+
+    "TemplateMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Template display name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed template description"
+        },
+        "author": {
+          "type": "string",
+          "description": "Template author"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Template version (semver)"
+        },
+        "requirements": {
+          "type": "object",
+          "properties": {
+            "os": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["linux", "macos", "windows"]
+              },
+              "description": "Supported operating systems"
+            },
+            "min_version": {
+              "type": "string",
+              "description": "Minimum CLI version required"
+            }
+          },
+          "additionalProperties": false
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Template categorization tags"
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "CLIResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "Operation success status"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message"
+        },
+        "data": {
+          "description": "Command-specific response data"
+        },
+        "error": {
+          "type": ["object", "null"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Error type identifier"
+            },
+            "details": {
+              "type": "object",
+              "description": "Error-specific details"
+            }
+          }
+        }
+      },
+      "required": ["success", "message"],
+      "additionalProperties": false
+    }
+  }
+}

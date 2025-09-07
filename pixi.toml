@@ -1,0 +1,29 @@
+[workspace]
+authors = ["Junjie_ZHANG <junj.jay.zhang@gmail.com>"]
+channels = ["https://repo.prefix.dev/meta-forge", "conda-forge"]
+name = "c3"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.11.*"
+pydantic = "*"
+typer = "*"
+gitpython = "*"
+
+[feature.dev.dependencies]
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+ruff = "0.6.*"
+mypy = "1.11.*"
+black = "24.*"
+pre-commit = ">=4.3.0,<5"
+
+[feature.dev.pypi-dependencies]
+c3cli = {path = ".", editable = true}
+
+[environments]
+dev = ["dev"]
