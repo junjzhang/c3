@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from ..lib.render import render_json
-from ..lib.command_base import get_command_context, handle_command_error
+from ..lib.command_base import ConfigurationError, get_command_context, handle_command_error
 from ..models.cli_config import CLIConfig
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def get_config(
         else:
             console.print(f"[red]Error: Unknown configuration key '{key}'[/red]")
             console.print("Valid keys: repository.url, repository.branch, config.dir, user.home")
-            raise typer.Exit(1)
+            raise ConfigurationError(f"Unknown configuration key '{key}'")
 
         console.print(f"{key}: {value}")
 
@@ -123,15 +123,15 @@ def set_config(
         elif keys == ["cache", "dir"]:
             console.print("[red]Error: Cache directory cannot be set directly[/red]")
             console.print("It is computed from config directory and repository URL")
-            raise typer.Exit(1)
+            raise ConfigurationError("Cache directory cannot be set directly")
         elif keys == ["auto", "sync"] or keys == ["auto_sync"]:
             console.print("[red]Error: Auto sync cannot be set directly[/red]")
             console.print("It is computed from repository configuration")
-            raise typer.Exit(1)
+            raise ConfigurationError("Auto sync cannot be set directly")
         else:
             console.print(f"[red]Error: Unknown configuration key '{key}'[/red]")
             console.print("Valid keys: repository.url, repository.branch")
-            raise typer.Exit(1)
+            raise ConfigurationError(f"Unknown configuration key '{key}'")
 
         # Save configuration
         config.save_to_file()
@@ -164,7 +164,7 @@ def unset_config(
         else:
             console.print(f"[red]Error: Unknown configuration key '{key}'[/red]")
             console.print("Valid keys: repository.url, repository.branch")
-            raise typer.Exit(1)
+            raise ConfigurationError(f"Unknown configuration key '{key}'")
 
         # Save configuration
         config.save_to_file()

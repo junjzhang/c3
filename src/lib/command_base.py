@@ -120,50 +120,18 @@ class ConflictError(CommandError):
         super().__init__(message, exit_code=2)
 
 
-def create_command_context(ctx_obj: CommandContext | dict) -> CommandContext:
-    """Create unified command context from click context object.
+def create_command_context(ctx_obj: CommandContext) -> CommandContext:
+    """Return the already-initialized unified command context.
 
-    This function handles both legacy dict format and new CommandContext format.
-    Commands can now use ctx.obj directly as CommandContext.
-
-    Args:
-        ctx_obj: Either a CommandContext instance or legacy dict format
-
-    Returns:
-        CommandContext with loaded configuration
+    All commands expect `ctx.obj` to be a CommandContext populated in main callback.
+    The legacy dict-based context has been removed to simplify behavior.
 
     Raises:
-        ConfigurationError: If configuration is invalid
-        RepositoryError: If repository configuration is invalid
+        ConfigurationError: If context object is not initialized properly
     """
-    # If ctx_obj is already a CommandContext, return it directly
     if isinstance(ctx_obj, CommandContext):
         return ctx_obj
-
-    # Legacy dict handling for backwards compatibility
-    try:
-        # Load configuration
-        config_path = ctx_obj.get("config_path")
-        config = CLIConfig.load_from_file(config_path)
-
-        # Apply repository override if provided
-        if ctx_obj.get("repo_override"):
-            try:
-                config.default_repo_url = ctx_obj["repo_override"]
-            except Exception as e:
-                raise RepositoryError(f"Invalid repository URL: {e}")
-
-        return CommandContext(
-            config=config,
-            verbose=ctx_obj.get("verbose", False),
-            output_format=ctx_obj.get("format", "text"),
-        )
-
-    except Exception as e:
-        if isinstance(e, CommandError):
-            raise
-        logger.error(f"Failed to create command context: {e}")
-        raise ConfigurationError(f"Configuration error: {e}")
+    raise ConfigurationError("Internal error: command context not initialized")
 
 
 def ensure_repository_configured(context: CommandContext) -> None:

@@ -233,6 +233,40 @@ class GitOperations:
         self.logger.info(f"Discovered {len(templates)} templates in repository")
         return templates
 
+    def get_template_by_name(
+        self,
+        repository_path: Path | str,
+        name: str,
+        template_type: TemplateType | None = None,
+    ) -> Template:
+        """Discover and return a template by name, optionally filtered by type.
+
+        Args:
+            repository_path: Path to the cloned repository
+            name: Template name to find
+            template_type: Optional TemplateType to restrict search
+
+        Returns:
+            Template instance when found
+
+        Raises:
+            ConfigurationError: When template is not found
+        """
+        from .command_base import ConfigurationError
+
+        templates = self.discover_templates(repository_path)
+        if template_type is not None:
+            if template_type == TemplateType.DOTFILES:
+                templates = [t for t in templates if t.is_dotfiles_template()]
+            elif template_type == TemplateType.PROJECT:
+                templates = [t for t in templates if t.is_project_template()]
+
+        by_name = {t.name: t for t in templates}
+        if name in by_name:
+            return by_name[name]
+
+        raise ConfigurationError(f"Template '{name}' not found")
+
     def _discover_templates_in_directory(self, base_dir: Path, template_type: TemplateType) -> list[Template]:
         """Discover templates in a specific directory.
 

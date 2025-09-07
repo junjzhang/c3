@@ -11,7 +11,9 @@ from rich.console import Console
 
 from ..lib.git_ops import GitOperations
 from ..lib.templates import TemplatesManager
+from ..models.template import TemplateType
 from ..lib.command_base import (
+    ConflictError,
     get_command_context,
     sync_repo_if_needed,
     handle_command_error,
@@ -55,19 +57,8 @@ def apply(
         # Unified sync/clone logic
         sync_repo_if_needed(context, git_ops)
 
-        # Discover templates
-        templates = git_ops.discover_templates(repo_cache_dir)
-        project_templates = {t.name: t for t in templates if t.is_project_template()}
-
-        # Find requested template
-        if template_name not in project_templates:
-            console.print(f"[red]Error: Template '{template_name}' not found[/red]")
-            available = list(project_templates.keys())
-            if available:
-                console.print(f"Available project templates: {', '.join(available)}")
-            raise typer.Exit(1)
-
-        template = project_templates[template_name]
+        # Find requested project template using helper (raises ConfigurationError if missing)
+        template = git_ops.get_template_by_name(repo_cache_dir, template_name, TemplateType.PROJECT)
 
         # Check for conflicts
         if not force:
@@ -80,7 +71,7 @@ def apply(
                 if not dry_run:
                     if not typer.confirm("Continue anyway?"):
                         console.print("Aborted")
-                        raise typer.Exit(2)
+                        raise ConflictError("Operation aborted by user due to file conflicts")
 
         # Apply template
         if context.output_format == "text":
@@ -140,7 +131,7 @@ def apply(
         else:
             if context.output_format == "text":
                 console.print(f"[red]Template '{template_name}' application failed[/red]")
-            raise typer.Exit(2) from None
+            raise ConflictError(f"Template '{template_name}' application failed")
 
     except Exception as e:
         handle_command_error(e)

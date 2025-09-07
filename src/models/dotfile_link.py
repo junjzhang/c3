@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-from pydantic import Field, BaseModel, ConfigDict, field_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator, field_serializer
 
 
 class DotfileLink(BaseModel):
@@ -144,11 +144,16 @@ class DotfileLink(BaseModel):
 
         return True, "OK"
 
+    # Pydantic v2 serializers
+    @field_serializer("source", "target")
+    def _serialize_path(self, v: Path) -> str:  # noqa: D401
+        return str(v)
+
+    @field_serializer("created_at", "last_verified")
+    def _serialize_dt(self, v: datetime | None):  # noqa: D401
+        return v.isoformat() if v is not None else None
+
     model_config = ConfigDict(
         validate_assignment=True,
         extra="forbid",
-        json_encoders={
-            Path: str,
-            datetime: lambda v: v.isoformat(),
-        },
     )

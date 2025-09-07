@@ -107,40 +107,26 @@ def render_text_templates(templates: list[Any], *, detailed: bool = False) -> No
     dotfiles = [t for t in templates if t.is_dotfiles_template()]
     projects = [t for t in templates if t.is_project_template()]
 
-    if dotfiles:
-        console.print("\n[bold cyan]dotfiles/[/bold cyan]")
-        if detailed:
+    def _render_template_group(title: str, items: list[Any], detailed_mode: bool) -> None:
+        if not items:
+            return
+        console.print(f"\n[bold cyan]{title}[/bold cyan]")
+        if detailed_mode:
             table = Table(show_header=True, header_style="bold magenta")
             table.add_column("Name")
             table.add_column("Description")
             table.add_column("Files")
             table.add_column("Script")
-
-            for template in sorted(dotfiles, key=lambda t: t.name):
+            for template in sorted(items, key=lambda t: t.name):
                 script_indicator = "✓" if template.has_install_script() else ""
                 table.add_row(template.name, template.description, str(len(template.files)), script_indicator)
             console.print(table)
         else:
-            for template in sorted(dotfiles, key=lambda t: t.name):
+            for template in sorted(items, key=lambda t: t.name):
                 script_indicator = " (with install.sh)" if template.has_install_script() else ""
                 console.print(f"  [green]{template.name}[/green] - {template.description}{script_indicator}")
 
-    if projects:
-        console.print("\n[bold cyan]projects/[/bold cyan]")
-        if detailed:
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("Name")
-            table.add_column("Description")
-            table.add_column("Files")
-            table.add_column("Script")
-
-            for template in sorted(projects, key=lambda t: t.name):
-                script_indicator = "✓" if template.has_install_script() else ""
-                table.add_row(template.name, template.description, str(len(template.files)), script_indicator)
-            console.print(table)
-        else:
-            for template in sorted(projects, key=lambda t: t.name):
-                script_indicator = " (with install.sh)" if template.has_install_script() else ""
-                console.print(f"  [green]{template.name}[/green] - {template.description}{script_indicator}")
+    _render_template_group("dotfiles/", dotfiles, detailed)
+    _render_template_group("projects/", projects, detailed)
 
     console.print(f"\nTotal: {len(templates)} template{'s' if len(templates) != 1 else ''}")

@@ -9,7 +9,9 @@ from rich.console import Console
 
 from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
+from ..models.template import TemplateType
 from ..lib.command_base import (
+    ConflictError,
     get_command_context,
     sync_repo_if_needed,
     handle_command_error,
@@ -46,19 +48,8 @@ def install(
         # Unified sync/clone logic
         sync_repo_if_needed(context, git_ops)
 
-        # Discover templates
-        templates = git_ops.discover_templates(repo_cache_dir)
-        dotfiles_templates = {t.name: t for t in templates if t.is_dotfiles_template()}
-
-        # Find requested template
-        if template_name not in dotfiles_templates:
-            console.print(f"[red]Error: Template '{template_name}' not found[/red]")
-            available = list(dotfiles_templates.keys())
-            if available:
-                console.print(f"Available dotfiles templates: {', '.join(available)}")
-            raise typer.Exit(1)
-
-        template = dotfiles_templates[template_name]
+        # Find requested dotfiles template using helper (raises ConfigurationError if missing)
+        template = git_ops.get_template_by_name(repo_cache_dir, template_name, TemplateType.DOTFILES)
 
         # Install template
         if context.output_format == "text":
@@ -84,8 +75,9 @@ def install(
                         run_script = typer.confirm("Run install.sh script?")
                         if run_script:
                             try:
+                                # Prefer invoking via bash to avoid executable-bit issues
                                 result = subprocess.run(
-                                    [str(script_path)],
+                                    ["bash", str(script_path)],
                                     cwd=script_path.parent,
                                     check=True,
                                     capture_output=True,
@@ -98,6 +90,10 @@ def install(
                                 console.print(f"[red]✗ Install script failed: {e}[/red]")
                                 if e.stderr:
                                     console.print(f"[red]{e.stderr}[/red]")
+                            except PermissionError as e:
+                                console.print(
+                                    f"[red]✗ Permission error executing install.sh: {e}. Try 'chmod +x {script_path}' or ensure file is readable.[/red]"
+                                )
                     else:
                         console.print("[yellow]DRY RUN: Would prompt to run install.sh[/yellow]")
 
@@ -107,7 +103,7 @@ def install(
         else:
             if context.output_format == "text":
                 console.print(f"[red]Template '{template_name}' installation failed[/red]")
-            raise typer.Exit(2)
+            raise ConflictError(f"Template '{template_name}' installation failed")
 
     except Exception as e:
         handle_command_error(e)

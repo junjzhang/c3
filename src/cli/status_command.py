@@ -8,7 +8,9 @@ from rich.console import Console
 from ..lib.render import render_json, render_text_status
 from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
+from ..models.template import TemplateType
 from ..lib.command_base import (
+    ConfigurationError,
     get_command_context,
     handle_command_error,
     ensure_repository_configured,
@@ -40,18 +42,16 @@ def status(
 
         if not repo_cache_dir.exists():
             console.print("[yellow]Warning: Repository cache not found. Run 'c3cli sync' first.[/yellow]")
-            raise typer.Exit(1)
+            raise ConfigurationError("Repository cache not found. Run 'c3cli sync' first.")
 
-        # Discover templates
-        templates = git_ops.discover_templates(repo_cache_dir)
-        dotfiles_templates = [t for t in templates if t.is_dotfiles_template()]
-
-        # Filter by template name if specified
+        # Discover templates or fetch single template if filter provided
         if template:
-            dotfiles_templates = [t for t in dotfiles_templates if t.name == template]
-            if not dotfiles_templates:
-                console.print(f"[red]Template '{template}' not found[/red]")
-                raise typer.Exit(1)
+            # Use helper for consistent error handling
+            single = git_ops.get_template_by_name(repo_cache_dir, template, TemplateType.DOTFILES)
+            dotfiles_templates = [single]
+        else:
+            templates = git_ops.discover_templates(repo_cache_dir)
+            dotfiles_templates = [t for t in templates if t.is_dotfiles_template()]
 
         # Check status of all dotfiles templates
         status_data = []
@@ -65,34 +65,34 @@ def status(
                 "missing_links": [],
             }
 
-        # Get expected symlinks for this template
-        expected_links = dotfiles_manager.expected_symlinks_for_template(template, repo_cache_dir)
+            # Get expected symlinks for this template
+            expected_links = dotfiles_manager.expected_symlinks_for_template(template, repo_cache_dir)
 
-        for link in expected_links:
-            if link.target.exists():
-                if link.target.is_symlink():
-                    actual_source = link.target.resolve()
-                    if actual_source == link.source:
-                        template_status["installed_links"].append(
-                            {"target": str(link.target), "source": str(link.source), "status": "ok"}
-                        )
+            for link in expected_links:
+                if link.target.exists():
+                    if link.target.is_symlink():
+                        actual_source = link.target.resolve()
+                        if actual_source == link.source:
+                            template_status["installed_links"].append(
+                                {"target": str(link.target), "source": str(link.source), "status": "ok"}
+                            )
+                        else:
+                            template_status["broken_links"].append(
+                                {
+                                    "target": str(link.target),
+                                    "source": str(link.source),
+                                    "actual_source": str(actual_source),
+                                    "status": "wrong_target",
+                                }
+                            )
                     else:
                         template_status["broken_links"].append(
-                            {
-                                "target": str(link.target),
-                                "source": str(link.source),
-                                "actual_source": str(actual_source),
-                                "status": "wrong_target",
-                            }
+                            {"target": str(link.target), "source": str(link.source), "status": "not_symlink"}
                         )
                 else:
-                    template_status["broken_links"].append(
-                        {"target": str(link.target), "source": str(link.source), "status": "not_symlink"}
+                    template_status["missing_links"].append(
+                        {"target": str(link.target), "source": str(link.source), "status": "missing"}
                     )
-            else:
-                template_status["missing_links"].append(
-                    {"target": str(link.target), "source": str(link.source), "status": "missing"}
-                )
 
             status_data.append(template_status)
 

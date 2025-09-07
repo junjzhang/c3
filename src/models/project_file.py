@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 from datetime import datetime
 
-from pydantic import Field, BaseModel, ConfigDict, field_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator, field_serializer
 
 
 class ProjectFile(BaseModel):
@@ -170,11 +170,16 @@ class ProjectFile(BaseModel):
         except RuntimeError:
             return False
 
+    # Pydantic v2 serializers
+    @field_serializer("source", "target")
+    def _serialize_path(self, v: Path) -> str:  # noqa: D401
+        return str(v)
+
+    @field_serializer("copied_at")
+    def _serialize_dt(self, v: datetime):  # noqa: D401
+        return v.isoformat()
+
     model_config = ConfigDict(
         validate_assignment=True,
         extra="forbid",
-        json_encoders={
-            Path: str,
-            datetime: lambda v: v.isoformat(),
-        },
     )

@@ -18,6 +18,7 @@ app = typer.Typer(
     add_completion=True,
     no_args_is_help=True,
     pretty_exceptions_enable=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 _FORMAT_OPTION = typer.Option(None, "--format", help="Output format (overrides config.default_format)")
@@ -44,7 +45,7 @@ def load_config(config_path: Path | None = None) -> CLIConfig:
         raise typer.Exit(1)
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
     version: bool = typer.Option(False, "--version", "-v", help="Show version"),
     config: str | None = typer.Option(None, "--config", help="Path to config file"),
