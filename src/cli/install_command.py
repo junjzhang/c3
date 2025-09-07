@@ -1,6 +1,7 @@
 """Install command implementation for dotfiles templates."""
 
 import logging
+import subprocess
 from typing import Annotated
 
 import typer
@@ -9,7 +10,6 @@ from rich.console import Console
 from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
 from ..lib.command_base import (
-    RepositoryError,
     get_command_context,
     handle_command_error,
     ensure_repository_configured,
@@ -47,18 +47,7 @@ def install(
             if context.verbose:
                 console.print(f"Syncing repository from {context.config.default_repo_url}")
 
-            if not repo_cache_dir.exists():
-                # Clone repository
-                success = git_ops.clone_repository(
-                    context.config.default_repo_url, repo_cache_dir, context.config.repo_branch
-                )
-                if not success:
-                    raise RepositoryError("Failed to clone repository")
-            else:
-                # Sync existing repository
-                success = git_ops.sync_repository(repo_cache_dir, context.config.repo_branch)
-                if not success:
-                    raise RepositoryError("Failed to sync repository")
+            git_ops.ensure_repo(context.config.default_repo_url, context.config.repo_branch, repo_cache_dir)
 
         # Discover templates
         templates = git_ops.discover_templates(repo_cache_dir)
@@ -97,8 +86,6 @@ def install(
                     if not dry_run:
                         run_script = typer.confirm("Run install.sh script?")
                         if run_script:
-                            import subprocess
-
                             try:
                                 result = subprocess.run(
                                     [str(script_path)],

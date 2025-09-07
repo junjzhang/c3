@@ -3,6 +3,7 @@
 import logging
 from pathlib import Path
 
+import click
 import typer
 from rich.logging import RichHandler
 
@@ -61,8 +62,6 @@ def main(
     setup_logging(verbose, quiet)
 
     # Store global options in context
-    import click
-
     ctx = click.get_current_context()
     ctx.ensure_object(dict)
     ctx.obj["config_path"] = Path(config) if config else None

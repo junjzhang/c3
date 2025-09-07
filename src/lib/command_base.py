@@ -8,6 +8,7 @@ manually parsing context and handling errors.
 import logging
 from dataclasses import dataclass
 
+import click
 import typer
 from rich.console import Console
 
@@ -153,7 +154,5 @@ def get_command_context() -> CommandContext:
     Raises:
         ConfigurationError: If context cannot be created
     """
-    import click
-
     ctx = click.get_current_context()
     return create_command_context(ctx.obj)

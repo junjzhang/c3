@@ -1,5 +1,6 @@
 """Git operations library for repository management."""
 
+import shutil
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -48,8 +49,6 @@ class GitOperations:
 
             # Remove existing directory if it exists
             if local_path.exists():
-                import shutil
-
                 shutil.rmtree(local_path)
 
             # Ensure parent directory exists
@@ -68,6 +67,38 @@ class GitOperations:
         except Exception as e:
             self.logger.error(f"Unexpected error while cloning {repo_url}: {e}")
             return False
+
+    def ensure_repo(self, repo_url: str, branch: str, cache_dir: Path, force: bool = False) -> Path:
+        """Ensure repository is available locally, clone if missing, sync if exists.
+
+        This eliminates the if/else branch pattern across all CLI commands.
+
+        Args:
+            repo_url: Git repository URL
+            branch: Branch to sync
+            cache_dir: Local cache directory path
+            force: Force sync, overwriting local changes
+
+        Returns:
+            Path to the local repository
+
+        Raises:
+            RepositoryError: If clone or sync operation fails
+        """
+        from .command_base import RepositoryError
+
+        if not cache_dir.exists():
+            # Clone repository
+            success = self.clone_repository(repo_url, cache_dir, branch)
+            if not success:
+                raise RepositoryError("Failed to clone repository")
+        else:
+            # Sync existing repository
+            success = self.sync_repository(cache_dir, branch, force=force)
+            if not success:
+                raise RepositoryError("Failed to sync repository")
+
+        return cache_dir
 
     def sync_repository(self, local_path: Path, branch: str | None = None, force: bool = False) -> bool:
         """Sync local repository with remote.

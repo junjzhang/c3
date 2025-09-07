@@ -3,6 +3,7 @@
 import json
 import logging
 
+import click
 import typer
 from rich import print
 from rich.table import Table
@@ -26,8 +27,6 @@ def list_templates(
     """
     try:
         # Get context and load configuration
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
 
@@ -54,16 +53,7 @@ def list_templates(
             if verbose:
                 console.print(f"Syncing repository from {config.default_repo_url}")
 
-            if not repo_cache_dir.exists():
-                success = git_ops.clone_repository(config.default_repo_url, repo_cache_dir, config.repo_branch)
-                if not success:
-                    console.print("[red]Error: Failed to clone repository[/red]")
-                    raise typer.Exit(4)
-            else:
-                success = git_ops.sync_repository(repo_cache_dir, config.repo_branch)
-                if not success:
-                    console.print("[red]Error: Failed to sync repository[/red]")
-                    raise typer.Exit(4)
+            git_ops.ensure_repo(config.default_repo_url, config.repo_branch, repo_cache_dir)
 
         # Discover templates
         templates = git_ops.discover_templates(repo_cache_dir)

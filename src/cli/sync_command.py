@@ -7,7 +7,6 @@ from rich.console import Console
 
 from ..lib.git_ops import GitOperations
 from ..lib.command_base import (
-    RepositoryError,
     get_command_context,
     handle_command_error,
     ensure_repository_configured,
@@ -43,23 +42,15 @@ def sync(
             console.print(f"Branch: {sync_branch}")
             console.print(f"Cache directory: {repo_cache_dir}")
 
-        # Sync repository
-        if not repo_cache_dir.exists():
-            # Clone repository
-            success = git_ops.clone_repository(context.config.default_repo_url, repo_cache_dir, sync_branch)
-            if success:
-                if context.output_format == "text":
-                    console.print("[green]✓ Repository cloned successfully[/green]")
+        # Ensure repository (clone if missing, sync if exists)
+        repo_existed = repo_cache_dir.exists()
+        git_ops.ensure_repo(context.config.default_repo_url, sync_branch, repo_cache_dir, force=force)
+
+        if context.output_format == "text":
+            if repo_existed:
+                console.print("[green]✓ Repository synchronized successfully[/green]")
             else:
-                raise RepositoryError("Failed to clone repository")
-        else:
-            # Sync existing repository
-            success = git_ops.sync_repository(repo_cache_dir, sync_branch, force=force)
-            if success:
-                if context.output_format == "text":
-                    console.print("[green]✓ Repository synchronized successfully[/green]")
-            else:
-                raise RepositoryError("Failed to sync repository")
+                console.print("[green]✓ Repository cloned successfully[/green]")
 
         # Show template count if verbose
         if context.verbose:

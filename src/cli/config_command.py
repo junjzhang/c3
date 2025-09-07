@@ -3,6 +3,7 @@
 import json
 import logging
 
+import click
 import typer
 from rich import print
 from rich.console import Console
@@ -20,8 +21,6 @@ config_app = typer.Typer(name="config", help="Manage CLI configuration")
 def list_config():
     """List all configuration settings."""
     try:
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
         output_format = ctx.obj.get("format", "text")
@@ -48,8 +47,6 @@ def get_config(
 ):
     """Get configuration value by key."""
     try:
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
 
@@ -81,8 +78,6 @@ def get_config(
 def show_config():
     """Show current configuration."""
     try:
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
         output_format = ctx.obj.get("format", "text")
@@ -122,8 +117,6 @@ def set_config(
 ):
     """Set configuration value."""
     try:
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
 
@@ -169,8 +162,6 @@ def unset_config(
 ):
     """Unset configuration value."""
     try:
-        import click
-
         ctx = click.get_current_context()
         config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
 
@@ -207,9 +198,6 @@ def reset_config(
             if not typer.confirm("Reset all configuration to defaults?"):
                 console.print("Cancelled")
                 return
-
-        import click
-
         ctx = click.get_current_context()
         config_path = ctx.obj.get("config_path")
 
