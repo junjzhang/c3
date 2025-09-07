@@ -22,6 +22,32 @@ A simple CLI tool for managing dotfiles (symlinks) and project templates (file c
 
 ## Installation
 
+## Shell Completion
+
+c3cli ships with Click/Typer completion. You can enable it per-shell:
+
+- Bash
+  - Temporary (current session): `c3cli --show-completion >> /dev/stdout && source <(c3cli --show-completion)`
+  - Persistent (Linux): `c3cli --install-completion`
+
+- Zsh
+  - Ensure `compinit` is enabled in your shell config.
+  - Temporary: `source <(c3cli --show-completion)`
+  - Persistent: `c3cli --install-completion`
+
+- Fish
+  - Temporary: `c3cli --show-completion | source`
+  - Persistent: `c3cli --install-completion`
+
+If your environment manages dotfiles differently, you can also capture the script explicitly:
+
+```
+c3cli --show-completion > ~/.config/c3cli/completion.sh
+source ~/.config/c3cli/completion.sh
+```
+
+Note: Completion requires c3cli 0.1.0+ and is enabled by default in the CLI.
+
 ```bash
 pixi install
 ```

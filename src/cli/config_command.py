@@ -1,13 +1,12 @@
 """Config command implementation for configuration management."""
 
-import json
 import logging
 
 import click
 import typer
-from rich import print
 from rich.console import Console
 
+from ..lib.render import render_json
 from ..models.cli_config import CLIConfig
 
 logger = logging.getLogger(__name__)
@@ -27,7 +26,7 @@ def list_config():
 
         if output_format == "json":
             config_dict = config.model_dump()
-            print(json.dumps(config_dict, indent=2, default=str))
+            render_json(config_dict)
         else:
             console.print("[bold]All Configuration Settings:[/bold]")
             console.print(f"repository.url: {config.default_repo_url or '[red]Not set[/red]'}")
@@ -84,7 +83,7 @@ def show_config():
 
         if output_format == "json":
             config_dict = config.model_dump()
-            print(json.dumps(config_dict, indent=2, default=str))
+            render_json(config_dict)
         else:
             console.print("[bold]Current Configuration:[/bold]")
             console.print(f"Repository URL: {config.default_repo_url or '[red]Not set[/red]'}")

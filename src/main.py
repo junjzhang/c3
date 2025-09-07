@@ -8,16 +8,19 @@ import typer
 from rich.logging import RichHandler
 
 from . import __version__
+from .models.enums import OutputFormat
 from .models.cli_config import CLIConfig
 
 # Global state
 app = typer.Typer(
     name="c3cli",
     help="Claude Code Configuration Manager CLI",
-    add_completion=False,
+    add_completion=True,
     no_args_is_help=True,
     pretty_exceptions_enable=False,
 )
+
+_FORMAT_OPTION = typer.Option(OutputFormat.TEXT, "--format", help="Output format")
 
 
 def setup_logging(verbose: bool = False, quiet: bool = False) -> None:
@@ -48,7 +51,7 @@ def main(
     repo: str | None = typer.Option(None, "--repo", help="Config repository URL (overrides config file)"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress non-error output"),
-    format_type: str = typer.Option("text", "--format", help="Output format: text, json"),
+    format_type: OutputFormat = _FORMAT_OPTION,
 ):
     """Claude Code Configuration Manager CLI.
 
@@ -68,7 +71,8 @@ def main(
     ctx.obj["repo_override"] = repo
     ctx.obj["verbose"] = verbose
     ctx.obj["quiet"] = quiet
-    ctx.obj["format"] = format_type
+    # Store as primitive to simplify downstream checks
+    ctx.obj["format"] = format_type.value
 
 
 # Import and register commands

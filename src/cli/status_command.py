@@ -1,12 +1,11 @@
 """Status command implementation for installation status."""
 
-import json
 import logging
 
 import typer
-from rich import print
 from rich.console import Console
 
+from ..lib.render import render_json, render_text_status
 from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
 from ..lib.command_base import (
@@ -99,68 +98,9 @@ def status(
 
         # Output results
         if context.output_format == "json":
-            print(json.dumps({"templates": status_data}, indent=2))
+            render_json({"templates": status_data})
         else:
-            # Text output
-            console.print(f"Repository: {context.config.default_repo_url}")
-            # Show sync status based on repository cache
-            if repo_cache_dir.exists():
-                console.print("Last sync: Repository is cached")
-            else:
-                console.print("Never synced")
-            console.print("[bold]Installation Status:[/bold]")
-
-            if not status_data:
-                console.print("[yellow]No dotfiles templates found[/yellow]")
-                return
-
-            for template_status in status_data:
-                name = template_status["name"]
-                description = template_status["description"]
-                installed = len(template_status["installed_links"])
-                broken = len(template_status["broken_links"])
-                missing = len(template_status["missing_links"])
-
-                total = installed + broken + missing
-
-                if total == 0:
-                    console.print(f"\n[bold cyan]{name}[/bold cyan] - {description}")
-                    console.print("  [yellow]No files to link[/yellow]")
-                    continue
-
-                status_color = "green" if broken == 0 and missing == 0 else "yellow" if broken == 0 else "red"
-                console.print(f"\n[bold cyan]{name}[/bold cyan] - {description}")
-                console.print(f"  [{status_color}]{installed}/{total} links active[/{status_color}]")
-
-                if context.verbose or broken > 0 or missing > 0:
-                    # Show detailed status
-                    if template_status["installed_links"]:
-                        console.print("  [green]✓ Active links:[/green]")
-                        for link in template_status["installed_links"]:
-                            console.print(f"    {link['target']} -> {link['source']}")
-
-                    if template_status["broken_links"]:
-                        console.print("  [red]✗ Broken links:[/red]")
-                        for link in template_status["broken_links"]:
-                            if link["status"] == "wrong_target":
-                                console.print(
-                                    f"    {link['target']} -> {link['actual_source']} (expected: {link['source']})"
-                                )
-                            else:
-                                console.print(f"    {link['target']} (not a symlink)")
-
-                    if template_status["missing_links"]:
-                        console.print("  [yellow]○ Missing links:[/yellow]")
-                        for link in template_status["missing_links"]:
-                            console.print(f"    {link['target']} -> {link['source']}")
-
-            # Summary
-            total_templates = len(status_data)
-            fully_installed = sum(
-                1 for t in status_data if len(t["broken_links"]) == 0 and len(t["missing_links"]) == 0
-            )
-
-            console.print(f"\nSummary: {fully_installed}/{total_templates} templates fully installed")
+            render_text_status(status_data, context.config.default_repo_url, repo_cache_dir, verbose=context.verbose)
 
     except Exception as e:
         handle_command_error(e)

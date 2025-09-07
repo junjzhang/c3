@@ -1,25 +1,29 @@
 """List command implementation for available templates."""
 
-import json
 import logging
 
 import click
 import typer
-from rich import print
-from rich.table import Table
 from rich.console import Console
 
+from ..lib.render import render_json, render_text_templates
 from ..lib.git_ops import GitOperations
+from ..models.enums import TemplateKind
 from ..models.cli_config import CLIConfig
 
 logger = logging.getLogger(__name__)
 console = Console()
 
 
+_PATTERN_ARG = typer.Argument(None, help="Filter templates by pattern (glob-style)")
+_TYPE_OPTION = typer.Option(TemplateKind.ALL, "--type", help="Filter by type")
+_DETAILED_OPTION = typer.Option(False, "--detailed", "-d", help="Show detailed information including descriptions")
+
+
 def list_templates(
-    pattern: str | None = typer.Argument(None, help="Filter templates by pattern (glob-style)"),
-    template_type: str = typer.Option("all", "--type", help="Filter by type: dotfiles, projects, all"),
-    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed information including descriptions"),
+    pattern: str | None = _PATTERN_ARG,
+    template_type: TemplateKind = _TYPE_OPTION,
+    detailed: bool = _DETAILED_OPTION,
 ):
     """List available templates from the configuration repository.
 
@@ -59,9 +63,9 @@ def list_templates(
         templates = git_ops.discover_templates(repo_cache_dir)
 
         # Filter by type
-        if template_type.lower() == "dotfiles":
+        if template_type == TemplateKind.DOTFILES:
             templates = [t for t in templates if t.is_dotfiles_template()]
-        elif template_type.lower() == "projects":
+        elif template_type == TemplateKind.PROJECTS:
             templates = [t for t in templates if t.is_project_template()]
         # "all" includes everything
 
@@ -75,11 +79,11 @@ def list_templates(
             message = "No templates found"
             if pattern:
                 message += f" matching pattern '{pattern}'"
-            if template_type != "all":
-                message += f" of type '{template_type}'"
+            if template_type != TemplateKind.ALL:
+                message += f" of type '{template_type.value}'"
 
             if output_format == "json":
-                print(json.dumps({"templates": []}))
+                render_json({"templates": []})
             else:
                 console.print(f"[yellow]{message}[/yellow]")
             return
@@ -104,53 +108,10 @@ def list_templates(
                     )
                 template_data.append(template_info)
 
-            print(json.dumps({"templates": template_data}, indent=2))
+            render_json({"templates": template_data})
 
         else:
-            # Text output
-            console.print("[bold]Available templates:[/bold]")
-
-            # Group by type for better display
-            dotfiles = [t for t in templates if t.is_dotfiles_template()]
-            projects = [t for t in templates if t.is_project_template()]
-
-            if dotfiles:
-                console.print("\n[bold cyan]dotfiles/[/bold cyan]")
-                if detailed:
-                    table = Table(show_header=True, header_style="bold magenta")
-                    table.add_column("Name")
-                    table.add_column("Description")
-                    table.add_column("Files")
-                    table.add_column("Script")
-
-                    for template in sorted(dotfiles, key=lambda t: t.name):
-                        script_indicator = "✓" if template.has_install_script() else ""
-                        table.add_row(template.name, template.description, str(len(template.files)), script_indicator)
-                    console.print(table)
-                else:
-                    for template in sorted(dotfiles, key=lambda t: t.name):
-                        script_indicator = " (with install.sh)" if template.has_install_script() else ""
-                        console.print(f"  [green]{template.name}[/green] - {template.description}{script_indicator}")
-
-            if projects:
-                console.print("\n[bold cyan]projects/[/bold cyan]")
-                if detailed:
-                    table = Table(show_header=True, header_style="bold magenta")
-                    table.add_column("Name")
-                    table.add_column("Description")
-                    table.add_column("Files")
-                    table.add_column("Script")
-
-                    for template in sorted(projects, key=lambda t: t.name):
-                        script_indicator = "✓" if template.has_install_script() else ""
-                        table.add_row(template.name, template.description, str(len(template.files)), script_indicator)
-                    console.print(table)
-                else:
-                    for template in sorted(projects, key=lambda t: t.name):
-                        script_indicator = " (with install.sh)" if template.has_install_script() else ""
-                        console.print(f"  [green]{template.name}[/green] - {template.description}{script_indicator}")
-
-            console.print(f"\nTotal: {len(templates)} template{'s' if len(templates) != 1 else ''}")
+            render_text_templates(templates, detailed=detailed)
 
     except typer.Exit:
         raise
