@@ -9,7 +9,11 @@ from rich.console import Console
 
 from ..lib.git_ops import GitOperations
 from ..lib.dotfiles import DotfilesManager
-from ..models.cli_config import CLIConfig
+from ..lib.command_base import (
+    get_command_context,
+    handle_command_error,
+    ensure_repository_configured,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -24,28 +28,16 @@ def status(
     their symlink status, and any broken or missing links.
     """
     try:
-        # Get context and load configuration
-        import click
-
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
-
-        if ctx.obj.get("repo_override"):
-            config.default_repo_url = ctx.obj["repo_override"]
-
-        if not config.is_configured():
-            console.print("[red]Error: No repository configured. Use 'c3cli config set repository.url <url>'[/red]")
-            raise typer.Exit(1)
-
-        verbose = ctx.obj.get("verbose", False)
-        output_format = ctx.obj.get("format", "text")
+        # Get unified command context
+        context = get_command_context()
+        ensure_repository_configured(context)
 
         # Setup managers
         git_ops = GitOperations()
-        dotfiles_manager = DotfilesManager(user_home=config.user_home)
+        dotfiles_manager = DotfilesManager(user_home=context.config.user_home)
 
         # Get repository cache directory
-        repo_cache_dir = config.get_repo_cache_dir()
+        repo_cache_dir = context.config.get_repo_cache_dir()
 
         if not repo_cache_dir.exists():
             console.print("[yellow]Warning: Repository cache not found. Run 'c3cli sync' first.[/yellow]")
@@ -106,10 +98,16 @@ def status(
             status_data.append(template_status)
 
         # Output results
-        if output_format == "json":
+        if context.output_format == "json":
             print(json.dumps({"templates": status_data}, indent=2))
         else:
             # Text output
+            console.print(f"Repository: {context.config.default_repo_url}")
+            # Show sync status based on repository cache
+            if repo_cache_dir.exists():
+                console.print("Last sync: Repository is cached")
+            else:
+                console.print("Never synced")
             console.print("[bold]Installation Status:[/bold]")
 
             if not status_data:
@@ -134,7 +132,7 @@ def status(
                 console.print(f"\n[bold cyan]{name}[/bold cyan] - {description}")
                 console.print(f"  [{status_color}]{installed}/{total} links active[/{status_color}]")
 
-                if verbose or broken > 0 or missing > 0:
+                if context.verbose or broken > 0 or missing > 0:
                     # Show detailed status
                     if template_status["installed_links"]:
                         console.print("  [green]✓ Active links:[/green]")
@@ -164,9 +162,5 @@ def status(
 
             console.print(f"\nSummary: {fully_installed}/{total_templates} templates fully installed")
 
-    except typer.Exit:
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error during status: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)

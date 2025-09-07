@@ -10,7 +10,12 @@ from rich.console import Console
 
 from ..lib.git_ops import GitOperations
 from ..lib.templates import TemplatesManager
-from ..models.cli_config import CLIConfig
+from ..lib.command_base import (
+    RepositoryError,
+    get_command_context,
+    handle_command_error,
+    ensure_repository_configured,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -31,25 +36,9 @@ def apply(
     to the target directory for one-time project initialization.
     """
     try:
-        # Get context and load configuration
-        import click
-
-        ctx = click.get_current_context()
-        config = CLIConfig.load_from_file(ctx.obj.get("config_path"))
-
-        if ctx.obj.get("repo_override"):
-            try:
-                config.default_repo_url = ctx.obj["repo_override"]
-            except Exception as e:
-                console.print(f"[red]Error: Invalid repository URL: {e}[/red]")
-                raise typer.Exit(4)
-
-        if not config.is_configured():
-            console.print("[red]Error: No repository configured. Use 'c3cli config set repository.url <url>'[/red]")
-            raise typer.Exit(1)
-
-        verbose = ctx.obj.get("verbose", False)
-        output_format = ctx.obj.get("format", "text")
+        # Get unified command context (replaces all the manual parsing above)
+        context = get_command_context()
+        ensure_repository_configured(context)
 
         # Determine target directory
         target_dir = Path(target) if target else Path.cwd()
@@ -60,23 +49,23 @@ def apply(
         templates_manager = TemplatesManager()
 
         # Get repository cache directory
-        repo_cache_dir = config.get_repo_cache_dir()
+        repo_cache_dir = context.config.get_repo_cache_dir()
 
         # Sync repository if needed
-        if not repo_cache_dir.exists() or config.should_auto_sync():
-            if verbose:
-                console.print(f"Syncing repository from {config.default_repo_url}")
+        if not repo_cache_dir.exists() or context.config.should_auto_sync():
+            if context.verbose:
+                console.print(f"Syncing repository from {context.config.default_repo_url}")
 
             if not repo_cache_dir.exists():
-                success = git_ops.clone_repository(config.default_repo_url, repo_cache_dir, config.repo_branch)
+                success = git_ops.clone_repository(
+                    context.config.default_repo_url, repo_cache_dir, context.config.repo_branch
+                )
                 if not success:
-                    console.print("[red]Error: Failed to clone repository[/red]")
-                    raise typer.Exit(4)
+                    raise RepositoryError("Failed to clone repository")
             else:
-                success = git_ops.sync_repository(repo_cache_dir, config.repo_branch)
+                success = git_ops.sync_repository(repo_cache_dir, context.config.repo_branch)
                 if not success:
-                    console.print("[red]Error: Failed to sync repository[/red]")
-                    raise typer.Exit(4)
+                    raise RepositoryError("Failed to sync repository")
 
         # Discover templates
         templates = git_ops.discover_templates(repo_cache_dir)
@@ -106,7 +95,7 @@ def apply(
                         raise typer.Exit(2)
 
         # Apply template
-        if output_format == "text":
+        if context.output_format == "text":
             console.print(f"Applying project template: [bold]{template_name}[/bold]")
             if template.description:
                 console.print(f"Description: {template.description}")
@@ -116,7 +105,7 @@ def apply(
             template, repo_cache_dir, target_dir, force=force, dry_run=dry_run
         )
 
-        if output_format == "text":
+        if context.output_format == "text":
             if dry_run:
                 console.print(f"[yellow]DRY RUN: Would copy {len(project_files)} files[/yellow]")
 
@@ -145,7 +134,7 @@ def apply(
                                     [str(temp_script)], cwd=target_dir, check=True, capture_output=True, text=True
                                 )
                                 console.print("✓ Executed install.sh successfully")
-                                if verbose and result.stdout:
+                                if context.verbose and result.stdout:
                                     console.print(result.stdout)
 
                                 # Clean up temp script if we created it
@@ -160,16 +149,12 @@ def apply(
                         console.print("[yellow]DRY RUN: Would prompt to run install.sh[/yellow]")
 
         if success:
-            if output_format == "text":
+            if context.output_format == "text":
                 console.print(f"[green]Template '{template_name}' applied successfully[/green]")
         else:
-            if output_format == "text":
+            if context.output_format == "text":
                 console.print(f"[red]Template '{template_name}' application failed[/red]")
             raise typer.Exit(2) from None
 
-    except typer.Exit:
-        raise
     except Exception as e:
-        logger.error(f"Unexpected error during apply: {e}")
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_command_error(e)
