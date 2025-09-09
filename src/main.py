@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 
 from . import __version__
 from .models.enums import OutputFormat
-from .models.cli_config import CLIConfig
+from .models.config_loader import CLIConfig
 
 # Global state
 app = typer.Typer(
@@ -76,7 +76,7 @@ def main(
             repo_override=repo,
             verbose=verbose,
             quiet=quiet,
-            format_type=(format_type.value if isinstance(format_type, OutputFormat) else None),
+            format_type=format_type.value if format_type else None,
         )
     except Exception as e:
         # Ensure repository/config errors return consistent exit codes during callback

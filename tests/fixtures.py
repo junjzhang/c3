@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 
 from src.lib.git_ops import GitOperations
 from src.lib.dotfiles import DotfilesManager
-from src.models.cli_config import CLIConfig
+from src.models.config_loader import CLIConfig
 
 
 class TestWithIsolation:
@@ -151,8 +151,8 @@ version = "1.0.0"
 
         # Mock the config loading and git operations to use our test setup
         with (
-            patch("src.models.cli_config.CLIConfig.load_from_file") as mock_load,
-            patch("src.models.cli_config.CLIConfig.get_repo_cache_dir") as mock_cache_dir,
+            patch("src.models.config_loader.CLIConfig.load_from_file") as mock_load,
+            patch("src.models.config_loader.CLIConfig.get_repo_cache_dir") as mock_cache_dir,
             patch("src.lib.git_ops.GitOperations.sync_repository") as mock_sync,
         ):
             mock_load.return_value = self.test_config

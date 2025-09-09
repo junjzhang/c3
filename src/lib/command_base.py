@@ -12,7 +12,7 @@ import click
 import typer
 from rich.console import Console
 
-from ..models.cli_config import CLIConfig
+from ..models.config_loader import CLIConfig
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -76,18 +76,14 @@ class CommandContext:
                 except Exception as e:
                     raise RepositoryError(f"Invalid repository URL: {e}")
 
-            # Resolve output format: CLI option overrides config; if not provided, use config.default_format
-            resolved_format = (
-                format_type.strip().lower() if isinstance(format_type, str) and format_type else config.default_format
-            )
+            # Resolve output format: CLI option overrides config
+            resolved_format = format_type or config.default_format
 
             return cls(config=config, verbose=verbose, output_format=resolved_format)
 
         except Exception as e:
-            if isinstance(e, CommandError):
-                raise
             logger.error(f"Failed to create command context: {e}")
-            raise ConfigurationError(f"Configuration error: {e}")
+            raise CommandError.from_exception(e)
 
 
 class CommandError(Exception):
@@ -97,6 +93,23 @@ class CommandError(Exception):
         self.message = message
         self.exit_code = exit_code
         super().__init__(message)
+
+    @classmethod
+    def from_exception(cls, error: Exception) -> "CommandError":
+        """Create appropriate CommandError from any exception."""
+        if isinstance(error, CommandError):
+            return error
+
+        # Categorize common error types
+        error_str = str(error).lower()
+        if any(keyword in error_str for keyword in ["repository", "git", "clone", "fetch", "remote"]):
+            return RepositoryError(str(error))
+        elif any(keyword in error_str for keyword in ["config", "toml", "validation", "invalid"]):
+            return ConfigurationError(str(error))
+        elif any(keyword in error_str for keyword in ["conflict", "exists", "permission"]):
+            return ConflictError(str(error))
+        else:
+            return cls(str(error))
 
 
 class RepositoryError(CommandError):
@@ -148,25 +161,14 @@ def ensure_repository_configured(context: CommandContext) -> None:
 
 
 def handle_command_error(error: Exception) -> None:
-    """Handle command errors with consistent formatting and exit codes.
-
-    This function should be called in the except block of all commands
-    to ensure consistent error handling across the CLI.
-
-    Args:
-        error: Exception to handle
-    """
-    if isinstance(error, CommandError):
-        console.print(f"[red]Error: {error.message}[/red]")
-        raise typer.Exit(error.exit_code)
-    elif isinstance(error, typer.Exit):
-        # Re-raise typer exits as-is
+    """Handle command errors with consistent formatting and exit codes."""
+    if isinstance(error, typer.Exit):
         raise
-    else:
-        # Unexpected error
-        logger.error(f"Unexpected error: {error}")
-        console.print(f"[red]Unexpected error: {error}[/red]")
-        raise typer.Exit(1)
+
+    # Convert to CommandError if needed
+    cmd_error = CommandError.from_exception(error)
+    console.print(f"[red]Error: {cmd_error.message}[/red]")
+    raise typer.Exit(cmd_error.exit_code)
 
 
 def get_command_context() -> CommandContext:

@@ -7,7 +7,7 @@ from rich.console import Console
 
 from ..lib.render import render_json
 from ..lib.command_base import ConfigurationError, get_command_context, handle_command_error
-from ..models.cli_config import CLIConfig
+from ..models.config_loader import CLIConfig
 
 logger = logging.getLogger(__name__)
 console = Console()
